@@ -184,7 +184,7 @@ module ActionView
       # you need is significantly different from the default presentation, it makes plenty of sense to access the <tt>object.errors</tt>
       # instance yourself and set it up. View the source of this method to see how easy it is.
       def error_messages_for(*params)
-        options = params.extract_options!.symbolize_keys
+        options = params.extract_options!.with_indifferent_access
 
         objects = Array.wrap(options.delete(:object) || params).map do |object|
           object = instance_variable_get("@#{object}") unless object.respond_to?(:to_model)
@@ -200,29 +200,29 @@ module ActionView
         objects.compact!
         count = objects.inject(0) {|sum, object| sum + object.errors.count }
 
-        unless count.zero?
+        if !count.zero?
           html = {}
           [:id, :class].each do |key|
             if options.include?(key)
               value = options[key]
               html[key] = value unless value.blank?
             else
-              html[key] = 'error_explanation'
+              html[key] = 'errorExplanation'
             end
           end
           options[:object_name] ||= params.first
 
-          I18n.with_options :locale => options[:locale], :scope => [:activerecord, :errors, :template] do |locale|
+          I18n.with_options :locale => options[:locale], :scope => [:errors, :template] do |locale|
             header_message = if options.include?(:header_message)
-              options[:header_message]
-            else
-              locale.t :header, :count => count, :model => options[:object_name].to_s.gsub('_', ' ')
-            end
+                               options[:header_message]
+                             else
+                               locale.t :header, :count => count, :model => options[:object_name].to_s.gsub('_', ' ')
+                             end
 
             message = options.include?(:message) ? options[:message] : locale.t(:body)
 
             error_messages = objects.sum do |object|
-              object.errors.full_messages.map do |msg|
+              object.errors.map(&:full_message).map do |msg|
                 content_tag(:li, msg)
               end
             end.join.html_safe
